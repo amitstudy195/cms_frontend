@@ -268,13 +268,27 @@ const mockApi = {
     const allMedia = getRawMedia();
     let url = "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600";
     
-    // Generate object URL for preview if File object
-    if (fileObj instanceof File) {
-      url = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(fileObj);
-      });
+    // Generate object URL for preview if File or Blob-like object
+    const isBlobLike = fileObj && (
+      fileObj instanceof Blob ||
+      fileObj instanceof File ||
+      (fileObj.constructor && (fileObj.constructor.name === "File" || fileObj.constructor.name === "Blob")) ||
+      (typeof fileObj.slice === "function" && fileObj.size !== undefined)
+    );
+
+    if (isBlobLike && fileObj.type && fileObj.type.startsWith("image/")) {
+      try {
+        url = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error("File reading error"));
+          reader.readAsDataURL(fileObj);
+        });
+      } catch (err) {
+        console.warn("FileReader error, falling back to placeholder", err);
+      }
+    } else if (fileObj && fileObj.url) {
+      url = fileObj.url;
     }
 
     const newMedia = {

@@ -61,27 +61,8 @@ export const MediaUpload = ({ onUploadSuccess }) => {
         });
       }, 200);
 
-      // Create a temporary mock object URL for the image preview
-      let fileUrl = "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600";
-      
-      if (file.type.startsWith("image/")) {
-        // Read the file locally to show a real preview in-memory!
-        fileUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.readAsDataURL(file);
-        });
-      }
-
-      const mockAsset = {
-        name: file.name,
-        url: fileUrl,
-        type: file.type,
-        size: `${(file.size / 1024).toFixed(0)} KB`
-      };
-
-      // Call API
-      await api.uploadMedia(mockAsset);
+      // Call API with raw File object
+      await api.uploadMedia(file);
       
       setProgress(100);
       setTimeout(() => {
