@@ -6,8 +6,8 @@ import { Badge } from "../components/common/Badge";
 import { Button } from "../components/common/Button";
 
 export const UserManagement = () => {
-  const { users, currentUser, changeUserRole } = useAuth();
-  const { showSuccess } = useNotification();
+  const { users, currentUser, changeUserRole, register } = useAuth();
+  const { showSuccess, showError } = useNotification();
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("Editor");
@@ -17,13 +17,18 @@ export const UserManagement = () => {
     showSuccess("User permissions updated successfully.");
   };
 
-  const handleAddUserSimulator = (e) => {
+  const handleAddUserSimulator = async (e) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserEmail.trim()) return;
 
-    showSuccess(`"${newUserName}" added to team roster (Simulation only).`);
-    setNewUserName("");
-    setNewUserEmail("");
+    try {
+      await register(newUserName, newUserEmail, "securePassword123", newUserRole);
+      showSuccess(`"${newUserName}" added to team roster successfully!`);
+      setNewUserName("");
+      setNewUserEmail("");
+    } catch (err) {
+      showError(`Failed to add user: ${err.message}`);
+    }
   };
 
   return (
