@@ -1,0 +1,165 @@
+import React, { createContext, useState, useEffect } from "react";
+
+export const AuthContext = createContext(null);
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const MOCK_USERS = [
+  {
+    id: "usr-1",
+    name: "Jane Doe",
+    email: "jane.doe@cms.com",
+    role: "Admin",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=60"
+  },
+  {
+    id: "usr-2",
+    name: "Alex Rivera",
+    email: "alex.rivera@cms.com",
+    role: "Editor",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=60"
+  }
+];
+
+export const AuthProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("cms_current_user");
+    return saved ? JSON.parse(saved) : (USE_MOCK ? MOCK_USERS[0] : null); // Default to Admin in mock, null in real
+  });
+
+  const [users, setUsers] = useState(MOCK_USERS);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem("cms_current_user", JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem("cms_current_user");
+    }
+  }, [currentUser]);
+
+  // Unified login (handles both Mock switcher and Backend JWT logins)
+  const login = async (emailOrUserId, password = "") => {
+    if (USE_MOCK) {
+      // Local Mock Login
+      const user = users.find((u) => u.id === emailOrUserId || u.email === emailOrUserId);
+      if (user) {
+        setCurrentUser(user);
+        return { success: true, user };
+      }
+      return { success: false, error: "Mock user not found" };
+    } else {
+      // Real Backend API Login
+      const response = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailOrUserId, password })
+      });
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || "Failed to authenticate");
+      }
+
+      const userPayload = {
+        id: data.data._id,
+        name: data.data.name,
+        email: data.data.email,
+        role: data.data.role,
+        avatar: data.data.role === "Admin"
+          ? "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
+          : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
+      };
+
+      // Store JWT token for API auth headers
+      localStorage.setItem("cms_jwt_token", data.data.token);
+      setCurrentUser(userPayload);
+      
+      return { success: true, user: userPayload };
+    }
+  };
+
+  // Backend register helper
+  const register = async (name, email, password, role = "Editor") => {
+    if (USE_MOCK) {
+      const newUser = {
+        id: `usr-${Date.now()}`,
+        name,
+        email,
+        role,
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
+      };
+      setUsers(prev => [...prev, newUser]);
+      return { success: true, user: newUser };
+    } else {
+      const response = await fetch(`${BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, role })
+      });
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      const userPayload = {
+        id: data.data._id,
+        name: data.data.name,
+        email: data.data.email,
+        role: data.data.role,
+        avatar: data.data.role === "Admin"
+          ? "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
+          : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
+      };
+
+      localStorage.setItem("cms_jwt_token", data.data.token);
+      setCurrentUser(userPayload);
+      
+      return { success: true, user: userPayload };
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("cms_jwt_token");
+    localStorage.removeItem("cms_current_user");
+    setCurrentUser(null);
+  };
+
+  const changeUserRole = (userId, newRole) => {
+    // Only applies to local mock users state
+    const updatedUsers = users.map((u) =>
+      u.id === userId ? { ...u, role: newRole } : u
+    );
+    setUsers(updatedUsers);
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser({ ...currentUser, role: newRole });
+    }
+  };
+
+  const isAdmin = currentUser?.role === "Admin";
+  const isEditor = currentUser?.role === "Editor";
+
+  const hasRole = (roles) => {
+    if (!currentUser) return false;
+    return roles.includes(currentUser.role);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        users,
+        login,
+        register,
+        logout,
+        changeUserRole,
+        isAdmin,
+        isEditor,
+        hasRole
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
