@@ -28,11 +28,12 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [allContent, media] = await Promise.all([
-          api.getContent(),
+        const [contentRes, media] = await Promise.all([
+          api.getContent(null, 1, 100),
           api.getMedia()
         ]);
         
+        const allContent = contentRes.data || [];
         const pages = allContent.filter(item => item.type === "page");
         const banners = allContent.filter(item => item.type === "banner");
         const pending = allContent.filter(item => item.status === "Pending Approval");
