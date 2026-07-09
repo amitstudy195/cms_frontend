@@ -12,9 +12,13 @@ export const UserManagement = () => {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("Editor");
 
-  const handleRoleChange = (userId, newRole) => {
-    changeUserRole(userId, newRole);
-    showSuccess("User permissions updated successfully.");
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await changeUserRole(userId, newRole);
+      showSuccess("User permissions updated successfully.");
+    } catch (err) {
+      showError(`Failed to update user role: ${err.message}`);
+    }
   };
 
   const handleAddUserSimulator = async (e) => {

@@ -56,6 +56,37 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!USE_MOCK && currentUser && currentUser.role === "Admin") {
+        try {
+          const token = localStorage.getItem("cms_jwt_token");
+          const response = await fetch(`${BASE_URL}/auth/users`, {
+            headers: {
+              "Authorization": token ? `Bearer ${token}` : ""
+            }
+          });
+          const data = await response.json();
+          if (data.success) {
+            const mappedUsers = data.data.map(user => ({
+              id: user._id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              avatar: user.avatar || getAvatarUrl(user.name, user.role)
+            }));
+            setUsers(mappedUsers);
+          }
+        } catch (err) {
+          console.error("Failed to load user roster from backend:", err);
+        }
+      } else if (!currentUser) {
+        setUsers(MOCK_USERS);
+      }
+    };
+    fetchUsers();
+  }, [currentUser]);
+
   // Unified login (handles both Mock switcher and Backend JWT logins)
   const login = async (emailOrUserId, password = "") => {
     if (USE_MOCK) {
@@ -141,14 +172,44 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
-  const changeUserRole = (userId, newRole) => {
-    // Only applies to local mock users state
-    const updatedUsers = users.map((u) =>
-      u.id === userId ? { ...u, role: newRole } : u
-    );
-    setUsers(updatedUsers);
-    if (currentUser && currentUser.id === userId) {
-      setCurrentUser({ ...currentUser, role: newRole });
+  const changeUserRole = async (userId, newRole) => {
+    if (USE_MOCK) {
+      // Local Mock Role Change
+      const updatedUsers = users.map((u) =>
+        u.id === userId ? { ...u, role: newRole } : u
+      );
+      setUsers(updatedUsers);
+      if (currentUser && currentUser.id === userId) {
+        setCurrentUser({ ...currentUser, role: newRole });
+      }
+    } else {
+      try {
+        const token = localStorage.getItem("cms_jwt_token");
+        const response = await fetch(`${BASE_URL}/auth/users/${userId}/role`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": token ? `Bearer ${token}` : ""
+          },
+          body: JSON.stringify({ role: newRole })
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || "Failed to update role");
+        }
+
+        const updatedUsers = users.map((u) =>
+          u.id === userId ? { ...u, role: newRole } : u
+        );
+        setUsers(updatedUsers);
+        if (currentUser && currentUser.id === userId) {
+          setCurrentUser({ ...currentUser, role: newRole });
+        }
+      } catch (err) {
+        console.error("Failed to update user role on backend:", err);
+        throw err;
+      }
     }
   };
 
