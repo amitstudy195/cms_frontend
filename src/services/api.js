@@ -319,6 +319,15 @@ const mockApi = {
 // -------------------------------------------------------------
 // Provider B: Real Backend Express REST API Connection
 // -------------------------------------------------------------
+const getHostUrl = () => {
+  try {
+    const url = new URL(BASE_URL);
+    return url.origin;
+  } catch (e) {
+    return "http://localhost:5000";
+  }
+};
+
 const realApi = {
   async getContent(type, page = 1, limit = 5, search = "", statusFilter = "All") {
     const statusParam = statusFilter !== "All" ? `&status=${statusFilter}` : "";
@@ -416,11 +425,12 @@ const realApi = {
     const data = await response.json();
     if (!data.success) throw new Error(data.message);
     
+    const host = getHostUrl();
     return data.data.map(item => ({
       id: item._id,
       name: item.originalName,
       // Prefix with server host if local file path
-      url: item.url.startsWith("http") ? item.url : `http://localhost:5000${item.url}`,
+      url: item.url.startsWith("http") ? item.url : `${host}${item.url}`,
       type: item.fileType,
       size: item.fileSize,
       uploadedAt: item.createdAt
@@ -439,10 +449,11 @@ const realApi = {
     const data = await response.json();
     if (!data.success) throw new Error(data.message);
     
+    const host = getHostUrl();
     return {
       id: data.data._id,
       name: data.data.originalName,
-      url: data.data.url.startsWith("http") ? data.data.url : `http://localhost:5000${data.data.url}`,
+      url: data.data.url.startsWith("http") ? data.data.url : `${host}${data.data.url}`,
       type: data.data.fileType,
       size: data.data.fileSize,
       uploadedAt: data.data.createdAt
