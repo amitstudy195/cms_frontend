@@ -5,7 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { Badge } from "./Badge";
 
 export const Navbar = ({ setIsMobileOpen }) => {
-  const { currentUser, users, login } = useAuth();
+  const { currentUser, users, login, logout } = useAuth();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -22,10 +22,28 @@ export const Navbar = ({ setIsMobileOpen }) => {
     return "CMS Workspace";
   };
 
-  const handleUserSwap = (userId) => {
-    login(userId);
-    setDropdownOpen(false);
+  const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+
+  const handleUserSwap = async (user) => {
+    try {
+      if (USE_MOCK) {
+        await login(user.id);
+      } else {
+        // Authenticate demo account with standard password on the backend
+        await login(user.email, "password123");
+      }
+      setDropdownOpen(false);
+    } catch (err) {
+      console.error("User swap failed:", err);
+    }
   };
+
+  const isDemoAccount = currentUser && (
+    currentUser.id === "usr-1" ||
+    currentUser.id === "usr-2" ||
+    currentUser.email === "jane.doe@cms.com" ||
+    currentUser.email === "alex.rivera@cms.com"
+  );
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-[#090d16]/70 backdrop-blur-md border-b border-slate-800/60 h-16">
@@ -46,10 +64,12 @@ export const Navbar = ({ setIsMobileOpen }) => {
       {/* Right Navbar Controls */}
       <div className="flex items-center gap-4">
         {/* Quick Role Tester Alert */}
-        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs rounded-xl font-medium">
-          <ShieldAlert className="h-3.5 w-3.5" />
-          <span>RBAC Simulator: Use profile selector to test permissions</span>
-        </div>
+        {isDemoAccount && (
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs rounded-xl font-medium">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            <span>RBAC Simulator: Use profile selector to test permissions</span>
+          </div>
+        )}
 
         {/* User Profiler Switcher */}
         {currentUser && (
@@ -75,35 +95,70 @@ export const Navbar = ({ setIsMobileOpen }) => {
                   onClick={() => setDropdownOpen(false)}
                 />
                 <div className="absolute right-0 mt-2.5 w-64 glass-panel border border-slate-700/60 rounded-xl shadow-xl z-20 overflow-hidden py-1.5">
-                  <div className="px-4 py-2 border-b border-slate-800/60">
-                    <p className="text-xs text-gray-400">Simulation Settings</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">Swap account to test role behaviors</p>
+                  {/* Current User Card Info */}
+                  <div className="px-4 py-3 border-b border-slate-800/60 flex items-center gap-3">
+                    <img
+                      src={currentUser.avatar}
+                      alt=""
+                      className="h-9 w-9 rounded-full object-cover border border-slate-700/80"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold text-white text-xs truncate">{currentUser.name}</p>
+                      <p className="text-[9px] text-gray-450 truncate">{currentUser.email}</p>
+                      <div className="mt-1">
+                        <Badge variant={currentUser.role}>{currentUser.role}</Badge>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-1 space-y-1">
-                    {users.map((user) => (
-                      <button
-                        key={user.id}
-                        onClick={() => handleUserSwap(user.id)}
-                        className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
-                          currentUser.id === user.id
-                            ? "bg-emerald-500/10 text-emerald-400 font-semibold"
-                            : "text-gray-300 hover:bg-slate-800/40 hover:text-white"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="h-6 w-6 rounded-full object-cover"
-                          />
-                          <div>
-                            <p className="font-medium">{user.name}</p>
-                            <p className="text-[9px] text-gray-400">{user.email}</p>
-                          </div>
-                        </div>
-                        <Badge variant={user.role}>{user.role}</Badge>
-                      </button>
-                    ))}
+
+                  {/* Sandbox profile switcher list (only displayed to demo users) */}
+                  {isDemoAccount && (
+                    <>
+                      <div className="px-4 py-2 border-b border-slate-800/60 bg-slate-950/20">
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Simulation Sandbox</p>
+                        <p className="text-[9px] text-gray-500 mt-0.5">Swap profile to test access privileges</p>
+                      </div>
+                      <div className="p-1 space-y-1">
+                        {(USE_MOCK ? users : users.slice(0, 2)).map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => handleUserSwap(user)}
+                            className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                              currentUser.id === user.id
+                                ? "bg-emerald-500/10 text-emerald-400 font-semibold"
+                                : "text-gray-300 hover:bg-slate-800/40 hover:text-white"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={user.avatar}
+                                alt={user.name}
+                                className="h-6 w-6 rounded-full object-cover"
+                              />
+                              <div>
+                                <p className="font-medium">{user.name}</p>
+                                <p className="text-[9px] text-gray-450">{user.email}</p>
+                              </div>
+                            </div>
+                            <Badge variant={user.role}>{user.role}</Badge>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Sign Out Action */}
+                  <div className="p-1 mt-1 border-t border-slate-800/60">
+                    <button
+                      onClick={() => {
+                        logout();
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-xs text-rose-450 hover:bg-rose-500/10 hover:text-rose-350 font-bold cursor-pointer transition-all"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
                   </div>
                 </div>
               </>

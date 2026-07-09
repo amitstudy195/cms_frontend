@@ -2,7 +2,7 @@
 // Supports both simulated LocalStorage Mock operations and real Backend API endpoints.
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false"; // Default to true, set to "false" to connect backend
-const BASE_URL = import.meta.env.VITE_API_URL || "https://cms-backend-im4r.onrender.com/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://localhost:5000/api";
 const DELAY = 600;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

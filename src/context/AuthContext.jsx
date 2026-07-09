@@ -22,13 +22,31 @@ const MOCK_USERS = [
   }
 ];
 
+const getAvatarUrl = (name, role) => {
+  if (name === "Jane Doe") {
+    return "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=60";
+  }
+  if (name === "Alex Rivera") {
+    return "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=60";
+  }
+  const bg = role === "Admin" ? "10b981" : "3b82f6"; // Admin -> Emerald, Editor -> Blue
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=fff&size=150&bold=true`;
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem("cms_current_user");
-    return saved ? JSON.parse(saved) : (USE_MOCK ? MOCK_USERS[0] : null); // Default to Admin in mock, null in real
+    return saved ? JSON.parse(saved) : null; // Start as logged out by default
   });
 
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [users, setUsers] = useState(() => {
+    const savedUsers = localStorage.getItem("cms_mock_users");
+    return savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("cms_mock_users", JSON.stringify(users));
+  }, [users]);
 
   useEffect(() => {
     if (currentUser) {
@@ -66,9 +84,7 @@ export const AuthProvider = ({ children }) => {
         name: data.data.name,
         email: data.data.email,
         role: data.data.role,
-        avatar: data.data.role === "Admin"
-          ? "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
-          : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
+        avatar: getAvatarUrl(data.data.name, data.data.role)
       };
 
       // Store JWT token for API auth headers
@@ -87,9 +103,10 @@ export const AuthProvider = ({ children }) => {
         name,
         email,
         role,
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
+        avatar: getAvatarUrl(name, role)
       };
       setUsers(prev => [...prev, newUser]);
+      setCurrentUser(newUser); // Auto-login on registration
       return { success: true, user: newUser };
     } else {
       const response = await fetch(`${BASE_URL}/auth/register`, {
@@ -108,9 +125,7 @@ export const AuthProvider = ({ children }) => {
         name: data.data.name,
         email: data.data.email,
         role: data.data.role,
-        avatar: data.data.role === "Admin"
-          ? "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
-          : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
+        avatar: getAvatarUrl(data.data.name, data.data.role)
       };
 
       localStorage.setItem("cms_jwt_token", data.data.token);
